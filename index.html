@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="pixnet-snippet">
+<head>
+  <meta charset="UTF-8">
+  <title>Snippet</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap-theme.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+  <script src="https://libs.pixfs.net/jquery.query/2.1.7/jquery.query-2.1.7.min.js"></script>
+  <script src="https://libs.pixfs.net/porthole/20110504/porthole.min.js"></script>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular-resource.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular-route.min.js"></script>
+  <script src="https://cdn.firebase.com/js/client/2.2.5/firebase.js"></script>
+  <script src="https://cdn.firebase.com/libs/angularfire/1.1.1/angularfire.min.js"></script>
+  <script src="src/pixnet-snippet.js"></script>
+</head>
+<body>
+  <div ng-view></div>
+  <script type="text/ng-template" id="list.html">
+    <table class="table">
+      <thead>
+      <tr>
+        <th>名稱</th>
+        <th><a href="#/new">新增</i></a></th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr ng-repeat="snippet in snippets">
+        <td><a href="#" ng-click="choose(snippet.html)">{{snippet.name}}</a></td>
+        <td>
+          <a ng-href="#/edit/{{snippet.$id}}">編輯</a>
+        </td>
+      </tr>
+      <tr ng-show="!loaded">
+        <td colspan="2" style="text-align:center">載入中...</td>
+      </tr>
+      </tbody>
+    </table>
+  </script>
+  <script type="text/ng-template" id="detail.html">
+    <form name="myForm">
+      <div class="form-group" ng-class="{'has-error': myForm.name.$invalid && !myForm.name.$pristine}">
+        <label class="control-label">名稱</label>
+        <input class="form-control" type="text" name="name" ng-model="snippet.name" required>
+      </div>
+     
+      <div class="form-group" ng-class="{'has-error': myForm.html.$invalid && !myForm.html.$pristine}">
+        <label class="control-label">HTML</label>
+        <textarea class="form-control" rows="5" name="html" ng-model="snippet.html" required></textarea>
+      </div>
+      <div class="form-group" style="text-align: center">
+        <a href="#/" class="btn btn-default">取消</a>
+        <button ng-click="save()" ng-disabled="myForm.$invalid" class="btn btn-primary">儲存</button>
+        <button ng-click="destroy()"ng-show="snippet.$id" class="btn btn-danger">刪除</button>
+      </div>
+    </form>
+  </script>
+</body>
+</html>
