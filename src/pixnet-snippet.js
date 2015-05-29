@@ -1,5 +1,5 @@
 /*
- * pixnet-snippet v0.1.0
+ * pixnet-snippet v0.2.0
  * https://github.com/emn178/pixnet-snippet
  *
  * Copyright 2015, emn178@gmail.com
@@ -9,6 +9,8 @@
  */
 ;(function($, window, document, undefined) {
   'use strict';
+
+  var localStorage = window.localStorage || {};
 
   var user = $.query.get('pix.user') || 'guest';
   var proxy_url = $.query.get('proxy_url') + '?addon_id=' + $.query.get('addon_id') + '&pToken=' + $.query.get('pToken');
@@ -21,32 +23,59 @@
     return new Firebase(fbURL);
   })
   .service('Snippets', function($firebaseArray, fbRef) {
-    var self = this;
+    var self = this, snippets;
+    var fetchFromFireBase = function(load) {
+      var ref = fbRef.child(user + '/snippets');
+      ref.on('value', load);
+      return $firebaseArray(ref);
+    };
+    var fetchFromLocal = function() {
+      if(!localStorage.snippets) {
+        return null;
+      }
+      var cacheTime = new Date(localStorage.cacheTime || 0)
+      if(new Date().getTime() - cacheTime > 6000 * 5) {
+        return null;
+      }
+      return angular.fromJson(localStorage.snippets);
+    };
+    var saveToLocal = function() {
+      localStorage.cacheTime = new Date().getTime();
+      localStorage.snippets = angular.toJson(snippets);
+    };
     this.fetch = function (load) {
-      if (self.snippets) {
-        return self.snippets;
+      if (snippets) {
+        return snippets;
       }
       var ref = fbRef.child(user + '/snippets');
-      ref.on('value', function() {
+      ref.on('value', function(a) {
         if(load) {
           load.call(self);
         }
       });
-      self.snippets = $firebaseArray(ref);
-      return self.snippets;
+      snippets = $firebaseArray(ref);
+      snippets.$loaded(saveToLocal);
+      var cache = fetchFromLocal();
+      if (cache) {
+        if(load) {
+          load.call(self);
+        }
+        return cache;
+      }
+      return snippets;
     };
     this.add = function(snippet) {
-      return self.snippets.$add(snippet);
+      return snippets.$add(snippet).then(saveToLocal);
     };
     this.get = function(id) {
-      var index = self.snippets.$indexFor(id);
-      return self.snippets[index];
+      var index = snippets.$indexFor(id);
+      return snippets[index];
     };
     this.remove = function(snippet, callback) {
-      self.snippets.$remove(snippet).then(callback);
+      snippets.$remove(snippet).then(callback).then(saveToLocal);
     };
     this.save = function(snippet, callback) {
-      self.snippets.$save(snippet).then(callback);
+      snippets.$save(snippet).then(callback).then(saveToLocal);
     }
   })
    
