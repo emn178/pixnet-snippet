@@ -1,5 +1,5 @@
 /*
- * pixnet-snippet v0.2.0
+ * pixnet-snippet v0.3.0
  * https://github.com/emn178/pixnet-snippet
  *
  * Copyright 2015, emn178@gmail.com
@@ -11,11 +11,28 @@
   'use strict';
 
   var localStorage = window.localStorage || {};
+  var tmpData = {};
 
   var user = $.query.get('pix.user') || 'guest';
   var proxy_url = $.query.get('proxy_url') + '?addon_id=' + $.query.get('addon_id') + '&pToken=' + $.query.get('pToken');
   var windowProxy = new Porthole.WindowProxy( proxy_url );
-  var loaded = false;
+  var loaded = false, firebaseLoaded = false;
+
+  Array.prototype.indexOfObject = function(obj, property) {
+    var value = obj[property];
+    for(var i = 0;i < this.length;++i) {
+      if(this[i][property] == value) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  function response(html) {
+    var ret = $.query.get('addon_id') + "||PIXNET||" + html;
+    windowProxy.postMessage(ret);
+  }
+
 
   angular.module('pixnet-snippet', ['ngRoute', 'ngResource', 'firebase'])
   .value('fbURL', 'https://pixnet-snippet.firebaseIO.com/')
@@ -50,7 +67,7 @@
       var ref = fbRef.child(user + '/snippets');
       ref.on('value', function(a) {
         if(load) {
-          load.call(self);
+          load.call(self, snippets);
         }
       });
       snippets = $firebaseArray(ref);
@@ -58,7 +75,7 @@
       var cache = fetchFromLocal();
       if (cache) {
         if(load) {
-          load.call(self);
+          load.call(self, cache);
         }
         return cache;
       }
@@ -93,25 +110,60 @@
         controller:'NewSnippetController',
         templateUrl:'detail.html'
       })
+      .when('/preview', {
+        controller:'SnippetPreviewController',
+        templateUrl:'preview.html'
+      })
       .otherwise({
         redirectTo:'/'
       });
   })
    
-  .controller('SnippetListController', function($scope, Snippets) {
+  .controller('SnippetListController', function($scope, $location, Snippets) {
     $scope.loaded = loaded;
-    $scope.snippets = Snippets.fetch(function() {
+    $scope.firebaseLoaded = firebaseLoaded;
+
+    $scope.snippets = Snippets.fetch(function(snippets) {
       loaded = $scope.loaded = true;
+      if(snippets && snippets.$add) {
+        firebaseLoaded = $scope.firebaseLoaded = true;
+      }
     });
 
-    $scope.choose = function(html) {
-      var ret = $.query.get('addon_id') + "||PIXNET||" + html;
-      windowProxy.postMessage(ret);
+    $scope.choose = function(snippet) {
+      if(snippet.variables && snippet.variables.length > 0) {
+        tmpData.snippet = snippet;
+        $location.path('/preview');
+      } else {
+        response(snippet.html);
+      }
+    };
+  })
+   
+  .controller('SnippetPreviewController', function($scope) {
+    $scope.snippet = tmpData.snippet;
+    $scope.variables = [];
+    $scope.preview = function() {
+      var html = $scope.snippet.html;
+      $scope.snippet.variables.forEach(function(variable, index) {
+        var name = variable.name.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+        var reg = new RegExp(name, 'g');
+        var value = $scope.variables[index] || '';
+        if(variable.plain) {
+          value = htmlEncode(value);
+        }
+        html = html.replace(reg, value);
+      });
+      return html;
+    };
+
+    $scope.submit = function() {
+      response($scope.preview());
     };
   })
    
   .controller('NewSnippetController', function($scope, $location, Snippets) {
-    $scope.snippet = {};
+    $scope.snippet = {variables: []};
     $scope.save = function() {
       Snippets.add($scope.snippet).then(function(data) {
         $location.path('/');
@@ -119,23 +171,39 @@
     };
   })
    
-  .controller('EditSnippetController',
-    function($scope, $location, $routeParams, Snippets) {
-      var id = $routeParams.snippetId;
-      $scope.snippet = Snippets.get(id);
+  .controller('EditSnippetController', function($scope, $location, $routeParams, Snippets) {
+    var id = $routeParams.snippetId;
+    $scope.snippet = Snippets.get(id);
+    $scope.snippet.variables = $scope.snippet.variables || [];
 
-      $scope.destroy = function() {
-        if(confirm('確定刪除？')) {
-          Snippets.remove($scope.snippet, function(data) {
-            $location.path('/');
-          });
-        }
-      };
-   
-      $scope.save = function() {
-        Snippets.save($scope.snippet, function(data) {
+    $scope.destroy = function() {
+      if(confirm('確定刪除？')) {
+        Snippets.remove($scope.snippet, function(data) {
           $location.path('/');
         });
-      };
+      }
+    };
+ 
+    $scope.save = function() {
+      Snippets.save($scope.snippet, function(data) {
+        $location.path('/');
+      });
+    };
+  })
+
+  .controller('VariableController', function($scope) {
+    var seq = 1;
+    $scope.addVariable = function() {
+      var variable = {name: '$VAR' + (seq++)};
+      var index = $scope.snippet.variables.indexOfObject(variable, 'name');
+      while(index != -1) {
+        variable.name = '$VAR' + (seq++);
+        index = $scope.snippet.variables.indexOfObject(variable, 'name');
+      }
+      $scope.snippet.variables.push(variable);
+    };
+    $scope.removeVariable = function(index) {
+      $scope.snippet.variables.splice(index, 1);
+    };
   });
 })(jQuery, window, document);

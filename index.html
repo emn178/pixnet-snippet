@@ -5,6 +5,7 @@
   <title>Snippet</title>
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap-theme.min.css">
+  <link rel="stylesheet" href="src/style.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
   <script src="https://libs.pixfs.net/jquery.query/2.1.7/jquery.query-2.1.7.min.js"></script>
   <script src="https://libs.pixfs.net/porthole/20110504/porthole.min.js"></script>
@@ -14,6 +15,7 @@
   <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular-route.min.js"></script>
   <script src="https://cdn.firebase.com/js/client/2.2.5/firebase.js"></script>
   <script src="https://cdn.firebase.com/libs/angularfire/1.1.1/angularfire.min.js"></script>
+  <script src="https://rawgit.com/emn178/js-htmlencode/master/build/htmlencode.min.js"></script>
   <script src="src/pixnet-snippet.js"></script>
 </head>
 <body>
@@ -23,37 +25,75 @@
       <thead>
       <tr>
         <th>名稱</th>
-        <th><a href="#/new">新增</i></a></th>
+        <th><a href="#/new" class="btn btn-default btn-sm"><i class="glyphicon glyphicon-plus"></i>新增</a></th>
       </tr>
       </thead>
       <tbody>
       <tr ng-repeat="snippet in snippets">
-        <td><a href="#" ng-click="choose(snippet.html)">{{snippet.name}}</a></td>
+        <td><a href="javascript: void(0);" ng-click="choose(snippet)">{{snippet.name}}</a></td>
         <td>
-          <a ng-href="#/edit/{{snippet.$id}}">編輯</a>
+          <a ng-href="#/edit/{{snippet.$id}}" ng-show="firebaseLoaded">編輯</a>
+          <span ng-show="!firebaseLoaded">載入中...</span>
         </td>
       </tr>
       <tr ng-show="!loaded">
-        <td colspan="2" style="text-align:center">載入中...</td>
+        <td colspan="2" class="center">載入中...</td>
       </tr>
       </tbody>
     </table>
   </script>
   <script type="text/ng-template" id="detail.html">
-    <form name="myForm">
+    <form name="myForm" ng-controller="VariableController">
       <div class="form-group" ng-class="{'has-error': myForm.name.$invalid && !myForm.name.$pristine}">
         <label class="control-label">名稱</label>
         <input class="form-control" type="text" name="name" ng-model="snippet.name" required>
       </div>
-     
       <div class="form-group" ng-class="{'has-error': myForm.html.$invalid && !myForm.html.$pristine}">
         <label class="control-label">HTML</label>
         <textarea class="form-control" rows="5" name="html" ng-model="snippet.html" required></textarea>
       </div>
-      <div class="form-group" style="text-align: center">
+      <div class="form-group" ng-show="snippet.variables.length > 0">
+        <label class="control-label">變數</label>
+      </div>
+      <div class="form-group" ng-repeat="variable in snippet.variables">
+        <div class="input-group">
+          <div class="input-group-addon">
+            <label>
+              <input type="checkbox" ng-model="variable.plain">
+              純文字
+            </label>
+          </div>
+          <input class="form-control" type="text" ng-model="variable.name" required>
+          <div class="input-group-addon">
+            <i ng-click="removeVariable($index)" class="glyphicon glyphicon-remove remove"></i>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <button ng-click="addVariable()" class="btn btn-default" type="button">
+          <i class="glyphicon glyphicon-plus"></i>
+          增加變數
+        </button>
+      </div>
+      <div class="form-group center">
         <a href="#/" class="btn btn-default">取消</a>
         <button ng-click="save()" ng-disabled="myForm.$invalid" class="btn btn-primary">儲存</button>
-        <button ng-click="destroy()"ng-show="snippet.$id" class="btn btn-danger">刪除</button>
+        <button ng-click="destroy()" ng-show="snippet.$id" class="btn btn-danger">刪除</button>
+      </div>
+    </form>
+  </script>
+  <script type="text/ng-template" id="preview.html">
+    <form>
+      <div class="form-group" ng-repeat="variable in snippet.variables track by $index">
+        <label class="control-label" ng-bind="variable.name"></label><span ng-show="variable.plain">(純文字)</span>
+        <textarea class="form-control" type="text" ng-model="variables[$index]"></textarea>
+      </div>
+      <div class="form-group">
+        <pre ng-bind="preview()"></pre>
+      </div>
+      <div class="form-group center">
+        <a href="#/" class="btn btn-default">取消</a>
+        <button ng-click="submit()" class="btn btn-primary">送出</button>
       </div>
     </form>
   </script>
